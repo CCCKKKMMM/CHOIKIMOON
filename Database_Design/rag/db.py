@@ -52,7 +52,7 @@ def fetch_missing_series_nm(conn):
 
 
 # ── DB 업데이트 ───────────────────────────────────────────────────────
-def update_vod(conn, full_asset_id: str, updates: dict, source: str = "claude-sonnet-4-6"):
+def update_vod(conn, full_asset_id: str, updates: dict, source: str = "ollama"):
     """updates: {'smry': '...', 'director': '...'} 형태"""
     if not updates:
         return

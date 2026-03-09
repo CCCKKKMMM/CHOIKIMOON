@@ -1,27 +1,37 @@
+"""
+Ollama 로컬 LLM 클라이언트 - TMDB 조회 실패 시 폴백
+
+Ollama 설치 및 실행:
+  https://ollama.com/download
+  ollama pull llama3.2
+  ollama serve
+"""
+
 import json
 import time
-import anthropic
-from config import ANTHROPIC_API_KEY, MODEL, REQUEST_DELAY, MAX_RETRIES
-
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+import requests
+from config import OLLAMA_BASE_URL, OLLAMA_MODEL, REQUEST_DELAY, MAX_RETRIES
 
 
-def _call_claude(prompt: str) -> str:
+def _call_ollama(prompt: str) -> str:
+    url = f"{OLLAMA_BASE_URL}/api/generate"
+    payload = {
+        "model": OLLAMA_MODEL,
+        "prompt": prompt,
+        "stream": False,
+        "format": "json",
+    }
     for attempt in range(MAX_RETRIES):
         try:
-            response = client.messages.create(
-                model=MODEL,
-                max_tokens=1024,
-                messages=[{"role": "user", "content": prompt}],
-            )
+            resp = requests.post(url, json=payload, timeout=120)
+            resp.raise_for_status()
             time.sleep(REQUEST_DELAY)
-            return response.content[0].text.strip()
-        except anthropic.RateLimitError:
-            wait = 30 * (attempt + 1)
-            print(f"  [Rate Limit] {wait}초 대기 후 재시도...")
-            time.sleep(wait)
-        except anthropic.APIError as e:
-            print(f"  [API Error] {e} (시도 {attempt+1}/{MAX_RETRIES})")
+            return resp.json().get("response", "").strip()
+        except requests.exceptions.ConnectionError:
+            print(f"  [Ollama] 연결 실패 - 'ollama serve' 실행 여부를 확인하세요")
+            return ""
+        except Exception as e:
+            print(f"  [Ollama Error] {e} (시도 {attempt+1}/{MAX_RETRIES})")
             time.sleep(5)
     return ""
 
@@ -37,7 +47,6 @@ def _parse_json(text: str) -> dict:
     return {}
 
 
-# ── smry 채우기 ──────────────────────────────────────────────────────
 def fetch_smry(asset_nm: str, ct_cl: str, genre: str, director: str) -> str:
     prompt = f"""다음 영상 콘텐츠의 줄거리(시놉시스)를 한국어 2~4문장으로 작성해주세요.
 반드시 JSON 형식으로만 응답하세요.
@@ -54,7 +63,7 @@ def fetch_smry(asset_nm: str, ct_cl: str, genre: str, director: str) -> str:
 정보가 전혀 없어 작성 불가능한 경우:
 {{"smry": null, "confidence": "none"}}"""
 
-    result = _parse_json(_call_claude(prompt))
+    result = _parse_json(_call_ollama(prompt))
     smry = result.get("smry")
     confidence = result.get("confidence", "low")
     if smry and confidence != "none":
@@ -62,7 +71,6 @@ def fetch_smry(asset_nm: str, ct_cl: str, genre: str, director: str) -> str:
     return ""
 
 
-# ── director 채우기 ──────────────────────────────────────────────────
 def fetch_director(asset_nm: str, ct_cl: str, genre: str, series_nm: str) -> str:
     prompt = f"""다음 영상 콘텐츠의 감독/연출자 이름을 알려주세요.
 반드시 JSON 형식으로만 응답하세요.
@@ -79,7 +87,7 @@ def fetch_director(asset_nm: str, ct_cl: str, genre: str, series_nm: str) -> str
 확실하지 않거나 알 수 없는 경우:
 {{"director": null, "confidence": "none"}}"""
 
-    result = _parse_json(_call_claude(prompt))
+    result = _parse_json(_call_ollama(prompt))
     director = result.get("director")
     confidence = result.get("confidence", "low")
     if director and confidence in ("high", "medium"):
@@ -87,7 +95,6 @@ def fetch_director(asset_nm: str, ct_cl: str, genre: str, series_nm: str) -> str
     return ""
 
 
-# ── series_nm 채우기 ─────────────────────────────────────────────────
 def fetch_series_nm(asset_nm: str, ct_cl: str, genre: str) -> str:
     prompt = f"""다음 에피소드/회차 콘텐츠가 속하는 시리즈명을 알려주세요.
 에피소드 번호나 회차를 제거한 순수 시리즈 제목만 응답하세요.
@@ -104,7 +111,7 @@ def fetch_series_nm(asset_nm: str, ct_cl: str, genre: str) -> str:
 단편/독립작이거나 알 수 없는 경우:
 {{"series_nm": null, "confidence": "none"}}"""
 
-    result = _parse_json(_call_claude(prompt))
+    result = _parse_json(_call_ollama(prompt))
     series_nm = result.get("series_nm")
     confidence = result.get("confidence", "low")
     if series_nm and confidence in ("high", "medium"):

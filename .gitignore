@@ -1,6 +1,10 @@
 # 환경변수
 .env
 
+# ChromaDB 데이터
+chroma_db/
+test_chroma_db/
+
 # Python
 __pycache__/
 *.pyc

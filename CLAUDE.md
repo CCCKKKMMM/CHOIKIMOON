@@ -44,18 +44,29 @@ CHOIKIMOON/
 - `watch_history` PK: `BIGSERIAL id`, FK: ON DELETE RESTRICT
 - RAG 추적 컬럼: `rag_processed`, `rag_source`, `rag_processed_at`
 
-## RAG 결측치 현황 (초기)
-| 컬럼 | 대상 | 건수 |
-|------|------|------|
-| smry | 전체 | 13건 |
-| director | 영화 | 44건 |
-| director | TV드라마/애니 | 4,527건 |
-| series_nm | TV드라마/애니 | 431건 |
+## RAG 결측치 현황 (파일럿 테스트 후, 2026-03-10)
+| 컬럼 | 결측 수 | 비고 |
+|------|--------|------|
+| smry | 7건 | TMDB 미등록 콘텐츠 |
+| director | 17,726건 | 중국 드라마 위주, TMDB 커버리지 없음 |
+| series_nm | 431건 | 영화·미분류 → 원래 없는 게 정상 |
+
+### RAG 파이프라인 누적 결과
+- TMDB 채움: 1,317건 (clean_title 적용 후 +50% 향상)
+- 스킵 (정보 없음): 3,267건
+- 미처리: 161,575건 (결측치가 거의 없어 우선순위 낮음)
 
 ## 환경변수
 - `TMDB_API_KEY`: TMDB API 키 (필수)
+
+## User Embedding 현황 (2026-03-10)
+- 448차원 멀티벡터: behavior(256) + genre(128) + demographic(64)
+- TDD: 70/70 테스트 통과
+- 벡터 DB: ChromaDB (`user_embeddings_v2` 컬렉션)
+- PG 메타: `user_embedding_meta` 테이블
 
 ## 커스텀 슬래시 커맨드
 | 커맨드 | 설명 |
 |--------|------|
 | `/security-editor [경로]` | 보안 취약점 탐지 → 테스트 작성 → 수정 (OWASP Top 10) |
+| `/user-embedding` | 사용자 임베딩 생성/검색 파이프라인 |

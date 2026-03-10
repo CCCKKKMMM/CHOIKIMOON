@@ -6,9 +6,26 @@ TMDB API 클라이언트 - VOD 메타데이터 조회 (1차 소스)
   TMDB API 키 발급: https://www.themoviedb.org/settings/api
 """
 
+import re
 import time
 import requests
 from config import TMDB_API_KEY, TMDB_BASE_URL, TMDB_LANGUAGE, REQUEST_DELAY
+
+# 에피소드 번호 패턴: "01회", "12화", "EP01", "S01E01", "시즌1 1화" 등
+_EPISODE_PATTERN = re.compile(
+    r'\s*(?:'
+    r'S\d{1,2}E\d{1,2}'           # S01E01
+    r'|시즌\s*\d+\s*\d*화?'        # 시즌1, 시즌1 1화
+    r'|EP\s*\d+'                   # EP01
+    r'|\d{1,3}\s*[화회ȸ]\.?'      # 01화, 12회, 01ȸ.
+    r')\s*$',
+    re.IGNORECASE
+)
+
+
+def clean_title(title: str) -> str:
+    """제목에서 에피소드 번호를 제거하여 시리즈명 반환"""
+    return _EPISODE_PATTERN.sub("", title).strip()
 
 
 def _get(endpoint: str, params: dict = None) -> dict:
@@ -33,7 +50,7 @@ def search_movie(title: str) -> dict:
     if not TMDB_API_KEY:
         return {}
 
-    data = _get("/search/movie", {"query": title})
+    data = _get("/search/movie", {"query": clean_title(title)})
     results = data.get("results", [])
     if not results:
         return {}
@@ -62,7 +79,7 @@ def search_tv(title: str) -> dict:
     if not TMDB_API_KEY:
         return {}
 
-    data = _get("/search/tv", {"query": title})
+    data = _get("/search/tv", {"query": clean_title(title)})
     results = data.get("results", [])
     if not results:
         return {}

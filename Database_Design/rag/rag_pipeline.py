@@ -19,8 +19,13 @@ RAG 파이프라인 - VOD 메타데이터 결측치 보강
   python rag_pipeline.py --tmdb-only     # TMDB만 사용 (Ollama 폴백 없음)
 """
 
+import sys
 import argparse
 import db
+
+# Windows 콘솔 인코딩 UTF-8 강제 설정
+if sys.stdout.encoding != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 import llm
 import tmdb
 from config import DIRECTOR_TARGET_CT_CL
